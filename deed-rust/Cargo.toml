@@ -28,6 +28,9 @@ rocksdb = "0.21"
 # Networking
 tonic = "0.10"  # gRPC
 prost = "0.12"
+axum = "0.7"  # REST API framework
+tower = "0.4"  # Middleware
+tower-http = { version = "0.5", features = ["cors", "trace"] }
 
 # Utilities
 dashmap = "5.5"  # Concurrent hashmap
