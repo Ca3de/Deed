@@ -76,11 +76,15 @@ class Index:
         result = set()
 
         for value, entity_id in self._sorted_entries:
-            if min_value is not None and value < min_value:
+            try:
+                if min_value is not None and value < min_value:
+                    continue
+                if max_value is not None and value > max_value:
+                    break
+                result.add(entity_id)
+            except TypeError:
+                # Type mismatch - skip this entry
                 continue
-            if max_value is not None and value > max_value:
-                break
-            result.add(entity_id)
 
         return result
 
