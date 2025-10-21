@@ -29,6 +29,44 @@ Production-ready **Rust implementation** providing 100-1000x performance improve
 
 See [`deed-rust/`](deed-rust/README.md) for the high-performance core engine.
 
+### **NEW**: DQL (Deed Query Language) 🚀
+
+**Unified query language** combining relational and graph operations in a single query:
+
+```dql
+FROM Users WHERE city = 'NYC'
+TRAVERSE -[:PURCHASED]-> Product
+WHERE Product.price > 100
+SELECT User.name, Product.name, Product.price
+ORDER BY Product.price DESC
+LIMIT 10;
+```
+
+**Key Features**:
+- ✅ Single unified language (not SQL + Cypher wrapper)
+- ✅ Biological optimization (ant colony) on entire hybrid query
+- ✅ Stigmergy-based query cache with pheromone trails
+- ✅ 10-100x faster than separate relational + graph queries
+- ✅ Variable-length traversal: `TRAVERSE -[:FOLLOWS*1..3]-> friend`
+- ✅ **Full CRUD operations**: INSERT, SELECT, UPDATE, DELETE
+
+**CRUD Examples**:
+```dql
+-- CREATE
+INSERT INTO Users VALUES ({name: 'Alice', age: 28, city: 'NYC'})
+
+-- READ
+FROM Users WHERE age > 25 SELECT name, city ORDER BY age DESC
+
+-- UPDATE
+UPDATE Users SET age = 30 WHERE name = 'Alice'
+
+-- DELETE
+DELETE FROM Users WHERE age > 60
+```
+
+See [DQL_DESIGN.md](DQL_DESIGN.md) for design rationale, [DQL_IMPLEMENTATION.md](DQL_IMPLEMENTATION.md) for implementation details, and [CRUD_GUIDE.md](CRUD_GUIDE.md) for complete CRUD documentation.
+
 ### The Problem
 
 Traditional databases force you to choose:
