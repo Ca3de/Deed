@@ -435,6 +435,76 @@ impl DQLExecutor {
                 Ok(())
             }
 
+            Operation::GroupBy {
+                group_fields,
+                aggregates,
+            } => {
+                // Group entities by group_fields values
+                use std::collections::BTreeMap;
+                let mut groups: BTreeMap<Vec<String>, Vec<Entity>> = BTreeMap::new();
+
+                // Get all entities from bindings
+                let all_entities: Vec<Entity> = ctx
+                    .bindings
+                    .values()
+                    .flat_map(|entities| entities.clone())
+                    .collect();
+
+                // Group entities by group_fields
+                for entity in all_entities {
+                    let mut group_key = Vec::new();
+                    for field_expr in group_fields {
+                        let value = self.evaluate_expression(field_expr, &entity, ctx);
+                        group_key.push(self.value_to_string(&value));
+                    }
+                    groups.entry(group_key).or_insert_with(Vec::new).push(entity);
+                }
+
+                // Compute aggregates for each group
+                let mut result_rows = Vec::new();
+                for (group_key, group_entities) in groups {
+                    let mut row = HashMap::new();
+
+                    // Add group fields to result
+                    for (idx, field_expr) in group_fields.iter().enumerate() {
+                        if let Some(key_value) = group_key.get(idx) {
+                            // Use first entity in group to get field name
+                            if let Some(first_entity) = group_entities.first() {
+                                let field_name = self.extract_field_name(field_expr);
+                                row.insert(
+                                    field_name,
+                                    self.evaluate_expression(field_expr, first_entity, ctx),
+                                );
+                            }
+                        }
+                    }
+
+                    // Compute aggregates
+                    for agg_op in aggregates {
+                        let agg_value = self.compute_aggregate(
+                            &agg_op.function,
+                            &agg_op.argument,
+                            &group_entities,
+                            ctx,
+                        );
+                        row.insert(agg_op.alias.clone(), agg_value);
+                    }
+
+                    result_rows.push(row);
+                }
+
+                ctx.result_rows = result_rows;
+                Ok(())
+            }
+
+            Operation::Having { condition } => {
+                // Filter aggregated result rows based on HAVING condition
+                ctx.result_rows.retain(|row| {
+                    self.evaluate_having_condition(condition, row)
+                });
+                Ok(())
+            }
+
             // Mutations are handled separately in execute_mutation()
             Operation::InsertEntity { .. }
             | Operation::UpdateEntities { .. }
@@ -585,6 +655,168 @@ impl DQLExecutor {
             (Value::Float(a), Value::Float(b)) => a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal),
             (Value::String(a), Value::String(b)) => a.cmp(b),
             _ => std::cmp::Ordering::Equal,
+        }
+    }
+
+    /// Compute aggregate function
+    fn compute_aggregate(
+        &self,
+        function: &AggregateFunc,
+        argument: &FilterExpr,
+        entities: &[Entity],
+        ctx: &ExecutionContext,
+    ) -> Value {
+        match function {
+            AggregateFunc::Count => {
+                // COUNT(*) or COUNT(field)
+                Value::Integer(entities.len() as i64)
+            }
+            AggregateFunc::Sum => {
+                let mut sum = 0.0;
+                for entity in entities {
+                    if let PropertyValue::Int(n) = self.evaluate_expression(argument, entity, ctx) {
+                        sum += n as f64;
+                    } else if let PropertyValue::Float(f) = self.evaluate_expression(argument, entity, ctx) {
+                        sum += f;
+                    }
+                }
+                Value::Float(sum)
+            }
+            AggregateFunc::Avg => {
+                if entities.is_empty() {
+                    return Value::Null;
+                }
+                let mut sum = 0.0;
+                let mut count = 0;
+                for entity in entities {
+                    if let PropertyValue::Int(n) = self.evaluate_expression(argument, entity, ctx) {
+                        sum += n as f64;
+                        count += 1;
+                    } else if let PropertyValue::Float(f) = self.evaluate_expression(argument, entity, ctx) {
+                        sum += f;
+                        count += 1;
+                    }
+                }
+                if count > 0 {
+                    Value::Float(sum / count as f64)
+                } else {
+                    Value::Null
+                }
+            }
+            AggregateFunc::Min => {
+                let mut min: Option<PropertyValue> = None;
+                for entity in entities {
+                    let val = self.evaluate_expression(argument, entity, ctx);
+                    if let Some(current_min) = &min {
+                        if let Some(std::cmp::Ordering::Less) = self.compare_property_values(&val, current_min) {
+                            min = Some(val);
+                        }
+                    } else {
+                        min = Some(val);
+                    }
+                }
+                match min {
+                    Some(PropertyValue::Int(n)) => Value::Integer(n),
+                    Some(PropertyValue::Float(f)) => Value::Float(f),
+                    Some(PropertyValue::String(s)) => Value::String(s),
+                    _ => Value::Null,
+                }
+            }
+            AggregateFunc::Max => {
+                let mut max: Option<PropertyValue> = None;
+                for entity in entities {
+                    let val = self.evaluate_expression(argument, entity, ctx);
+                    if let Some(current_max) = &max {
+                        if let Some(std::cmp::Ordering::Greater) = self.compare_property_values(&val, current_max) {
+                            max = Some(val);
+                        }
+                    } else {
+                        max = Some(val);
+                    }
+                }
+                match max {
+                    Some(PropertyValue::Int(n)) => Value::Integer(n),
+                    Some(PropertyValue::Float(f)) => Value::Float(f),
+                    Some(PropertyValue::String(s)) => Value::String(s),
+                    _ => Value::Null,
+                }
+            }
+        }
+    }
+
+    /// Extract field name from expression
+    fn extract_field_name(&self, expr: &FilterExpr) -> String {
+        match expr {
+            FilterExpr::Property { binding: _, property } => property.clone(),
+            _ => "field".to_string(),
+        }
+    }
+
+    /// Convert Value to String for grouping
+    fn value_to_string(&self, value: &Value) -> String {
+        match value {
+            Value::Null => "NULL".to_string(),
+            Value::Bool(b) => b.to_string(),
+            Value::Integer(n) => n.to_string(),
+            Value::Float(f) => f.to_string(),
+            Value::String(s) => s.clone(),
+            Value::EntityId(id) => format!("entity_{}", id),
+            Value::EdgeId(id) => format!("edge_{}", id),
+        }
+    }
+
+    /// Evaluate HAVING condition on aggregated result row
+    fn evaluate_having_condition(&self, condition: &FilterExpr, row: &HashMap<String, Value>) -> bool {
+        match condition {
+            FilterExpr::And(l, r) => {
+                self.evaluate_having_condition(l, row) && self.evaluate_having_condition(r, row)
+            }
+            FilterExpr::Or(l, r) => {
+                self.evaluate_having_condition(l, row) || self.evaluate_having_condition(r, row)
+            }
+            FilterExpr::Not(e) => !self.evaluate_having_condition(e, row),
+
+            FilterExpr::GreaterThan(l, r) => {
+                let lv = self.evaluate_having_expr(l, row);
+                let rv = self.evaluate_having_expr(r, row);
+                matches!(self.compare_values(&lv, &rv), std::cmp::Ordering::Greater)
+            }
+            FilterExpr::GreaterThanEq(l, r) => {
+                let lv = self.evaluate_having_expr(l, row);
+                let rv = self.evaluate_having_expr(r, row);
+                matches!(self.compare_values(&lv, &rv), std::cmp::Ordering::Greater | std::cmp::Ordering::Equal)
+            }
+            FilterExpr::LessThan(l, r) => {
+                let lv = self.evaluate_having_expr(l, row);
+                let rv = self.evaluate_having_expr(r, row);
+                matches!(self.compare_values(&lv, &rv), std::cmp::Ordering::Less)
+            }
+            FilterExpr::Equal(l, r) => {
+                let lv = self.evaluate_having_expr(l, row);
+                let rv = self.evaluate_having_expr(r, row);
+                matches!(self.compare_values(&lv, &rv), std::cmp::Ordering::Equal)
+            }
+
+            _ => true,
+        }
+    }
+
+    /// Evaluate expression in HAVING context (on result row)
+    fn evaluate_having_expr(&self, expr: &FilterExpr, row: &HashMap<String, Value>) -> Value {
+        match expr {
+            FilterExpr::Aggregate { function: _, argument: _ } => {
+                // Find aggregate value in row by matching pattern
+                // Simplified: just return first numeric value found
+                for value in row.values() {
+                    return value.clone();
+                }
+                Value::Null
+            }
+            FilterExpr::Constant(v) => v.clone(),
+            FilterExpr::Property { binding: _, property } => {
+                row.get(property).cloned().unwrap_or(Value::Null)
+            }
+            _ => Value::Null,
         }
     }
 

@@ -57,6 +57,18 @@ impl Parser {
         self.expect(&Token::Select)?;
         let select = self.parse_select_clause()?;
 
+        let group_by = if self.current() == &Token::GroupBy {
+            Some(self.parse_group_by()?)
+        } else {
+            None
+        };
+
+        let having = if self.current() == &Token::Having {
+            Some(self.parse_having()?)
+        } else {
+            None
+        };
+
         let order_by = if self.current() == &Token::OrderBy {
             Some(self.parse_order_by()?)
         } else {
@@ -84,6 +96,8 @@ impl Parser {
             traverse,
             where_clause,
             select,
+            group_by,
+            having,
             order_by,
             limit,
             offset,
@@ -359,6 +373,13 @@ impl Parser {
 
     fn parse_primary(&mut self) -> Result<Expression, String> {
         match self.current().clone() {
+            // Aggregate functions
+            Token::Count => self.parse_aggregate_function(AggregateFunction::Count),
+            Token::Sum => self.parse_aggregate_function(AggregateFunction::Sum),
+            Token::Avg => self.parse_aggregate_function(AggregateFunction::Avg),
+            Token::Min => self.parse_aggregate_function(AggregateFunction::Min),
+            Token::Max => self.parse_aggregate_function(AggregateFunction::Max),
+
             Token::Identifier(name) => {
                 self.advance();
 
@@ -409,6 +430,25 @@ impl Parser {
             }
             _ => Err(format!("Unexpected token in expression: {:?}", self.current())),
         }
+    }
+
+    /// Parse aggregate function call: COUNT(*), SUM(field), etc.
+    fn parse_aggregate_function(&mut self, func: AggregateFunction) -> Result<Expression, String> {
+        self.advance(); // consume function name
+        self.expect(&Token::LeftParen)?;
+
+        let argument = if self.current() == &Token::Star {
+            // COUNT(*) - special case
+            self.advance();
+            Expression::Literal(Literal::Integer(1)) // Placeholder for "count all"
+        } else {
+            // COUNT(field), SUM(field), etc.
+            self.parse_expression()?
+        };
+
+        self.expect(&Token::RightParen)?;
+
+        Ok(Expression::Aggregate(func, Box::new(argument)))
     }
 
     /// Parse SELECT clause
@@ -471,6 +511,33 @@ impl Parser {
         }
 
         Ok(OrderByClause { fields })
+    }
+
+    /// Parse GROUP BY clause
+    fn parse_group_by(&mut self) -> Result<GroupByClause, String> {
+        self.expect(&Token::GroupBy)?;
+
+        let mut fields = Vec::new();
+
+        loop {
+            let expression = self.parse_expression()?;
+            fields.push(expression);
+
+            if self.current() == &Token::Comma {
+                self.advance();
+            } else {
+                break;
+            }
+        }
+
+        Ok(GroupByClause { fields })
+    }
+
+    /// Parse HAVING clause
+    fn parse_having(&mut self) -> Result<HavingClause, String> {
+        self.expect(&Token::Having)?;
+        let condition = self.parse_expression()?;
+        Ok(HavingClause { condition })
     }
 
     /// Parse INSERT query
