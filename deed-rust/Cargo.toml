@@ -45,6 +45,12 @@ prometheus = "0.13"
 tracing = "0.1"
 tracing-subscriber = "0.3"
 
+# Additional utilities
+sha2 = "0.10"
+flate2 = "1.1"
+chrono = "0.4"
+num_cpus = "1.17"
+
 [dev-dependencies]
 criterion = "0.5"  # Benchmarking
 proptest = "1.4"   # Property-based testing

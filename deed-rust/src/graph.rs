@@ -358,8 +358,8 @@ impl Graph {
     /// Insert edge with specific ID (for restore)
     pub fn insert_edge_with_id(&self, edge: Edge) {
         let id = edge.id;
-        let from = edge.from;
-        let to = edge.to;
+        let from = edge.source;
+        let to = edge.target;
         let edge_type = edge.edge_type.clone();
 
         // Insert into edges map

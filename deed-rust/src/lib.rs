@@ -96,7 +96,7 @@ pub use distributed_p2p::{P2PNetwork, P2PMessage, P2PConfig, MessageType};
 pub use distributed_shard::{ShardManager, ShardAssignment, ConsistentHash, ShardId};
 pub use distributed_query::{DistributedQueryExecutor, DistributedQueryPlan};
 pub use distributed_consensus::{RaftNode, RaftState, RaftConfig, RaftMessage, RaftStats, Term, LogIndex};
-pub use distributed_2pc::{TwoPhaseCommitCoordinator, TwoPhaseCommitParticipant, TwoPhaseCommitMessage, TwoPhaseCommitState, Vote, TransactionId, TwoPhaseCommitStats};
+pub use distributed_2pc::{TwoPhaseCommitCoordinator, TwoPhaseCommitParticipant, TwoPhaseCommitMessage, TwoPhaseCommitState, Vote, TwoPhaseCommitStats};
 pub use distributed_partition::{PartitionManager, QuorumManager, ConsistencyLevel, PartitionState, PartitionStats, QuorumStats};
 pub use distributed_recovery::{FailureRecoveryManager, RecoveryAction, RecoveryState, RecoveryStats};
 pub use distributed_metrics::{DeedMetrics, MetricsServer, MetricsSnapshot};
