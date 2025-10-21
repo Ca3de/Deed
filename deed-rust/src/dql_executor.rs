@@ -6,30 +6,87 @@ use crate::dql_ir::*;
 use crate::dql_optimizer::{AntColonyOptimizer, StigmergyCache};
 use crate::dql_parser::Parser;
 use crate::graph::{Graph, Entity, Edge};
+use crate::transaction::{TransactionManager, TransactionId, IsolationLevel};
+use crate::wal::WALManager;
 use crate::types::{EntityId, EdgeId, EdgeType, EntityType, Properties, PropertyValue};
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, Mutex};
+use std::path::Path;
 
-/// Query executor with biological optimization
+/// Query executor with biological optimization and transaction support
 pub struct DQLExecutor {
     graph: Arc<RwLock<Graph>>,
     optimizer: Arc<RwLock<AntColonyOptimizer>>,
     cache: Arc<RwLock<StigmergyCache>>,
+    transaction_manager: Arc<TransactionManager>,
+    wal_manager: Option<Arc<WALManager>>,
+    current_transaction: Arc<Mutex<Option<TransactionId>>>,
 }
 
 impl DQLExecutor {
+    /// Create a new executor without WAL (non-durable)
     pub fn new(graph: Arc<RwLock<Graph>>) -> Self {
         DQLExecutor {
             graph,
             optimizer: Arc::new(RwLock::new(AntColonyOptimizer::new())),
             cache: Arc::new(RwLock::new(StigmergyCache::new(1000))),
+            transaction_manager: Arc::new(TransactionManager::new()),
+            wal_manager: None,
+            current_transaction: Arc::new(Mutex::new(None)),
         }
+    }
+
+    /// Create a new executor with WAL for durability
+    pub fn new_with_wal<P: AsRef<Path>>(graph: Arc<RwLock<Graph>>, wal_path: P) -> Result<Self, String> {
+        let wal_manager = WALManager::new(wal_path)
+            .map_err(|e| format!("Failed to create WAL: {}", e))?;
+
+        Ok(DQLExecutor {
+            graph,
+            optimizer: Arc::new(RwLock::new(AntColonyOptimizer::new())),
+            cache: Arc::new(RwLock::new(StigmergyCache::new(1000))),
+            transaction_manager: Arc::new(TransactionManager::new()),
+            wal_manager: Some(Arc::new(wal_manager)),
+            current_transaction: Arc::new(Mutex::new(None)),
+        })
     }
 
     /// Execute a DQL query string
     pub fn execute(&self, query_str: &str) -> Result<QueryResult, String> {
         // Parse query
         let query = Parser::parse(query_str)?;
+
+        // Handle transaction commands separately
+        match &query {
+            crate::dql_ast::Query::Begin(begin_query) => {
+                return self.handle_begin(begin_query);
+            }
+            crate::dql_ast::Query::Commit => {
+                return self.handle_commit();
+            }
+            crate::dql_ast::Query::Rollback => {
+                return self.handle_rollback();
+            }
+            _ => {
+                // Regular query - continue below
+            }
+        }
+
+        // Check if this is a mutation that needs auto-commit
+        let needs_auto_commit = self.is_mutation_query(&query);
+        let had_active_txn = self.current_transaction.lock().unwrap().is_some();
+
+        // Auto-begin transaction if needed
+        if needs_auto_commit && !had_active_txn {
+            let txn_id = self.transaction_manager.begin(IsolationLevel::default())?;
+            *self.current_transaction.lock().unwrap() = Some(txn_id);
+
+            // Log to WAL
+            if let Some(wal) = &self.wal_manager {
+                wal.log_begin(txn_id, IsolationLevel::default())
+                    .map_err(|e| format!("WAL error: {}", e))?;
+            }
+        }
 
         // Build initial plan
         let mut builder = QueryPlanBuilder::new();
@@ -39,6 +96,7 @@ impl DQLExecutor {
             crate::dql_ast::Query::Update(q) => builder.build_update(q)?,
             crate::dql_ast::Query::Delete(q) => builder.build_delete(q)?,
             crate::dql_ast::Query::Create(q) => builder.build_create(q)?,
+            _ => unreachable!(), // Transaction commands handled above
         };
 
         // Try cache first (stigmergy)
@@ -64,7 +122,18 @@ impl DQLExecutor {
         };
 
         // Execute the plan
-        self.execute_plan(&optimized_plan)
+        let result = self.execute_plan(&optimized_plan);
+
+        // Auto-commit if we auto-began
+        if needs_auto_commit && !had_active_txn {
+            if result.is_ok() {
+                self.handle_commit()?;
+            } else {
+                self.handle_rollback()?;
+            }
+        }
+
+        result
     }
 
     /// Execute a query plan
@@ -818,6 +887,87 @@ impl DQLExecutor {
             }
             _ => Value::Null,
         }
+    }
+
+    /// Check if a query is a mutation (needs transaction)
+    fn is_mutation_query(&self, query: &crate::dql_ast::Query) -> bool {
+        matches!(
+            query,
+            crate::dql_ast::Query::Insert(_)
+                | crate::dql_ast::Query::Update(_)
+                | crate::dql_ast::Query::Delete(_)
+                | crate::dql_ast::Query::Create(_)
+        )
+    }
+
+    /// Handle BEGIN TRANSACTION
+    fn handle_begin(&self, begin_query: &crate::dql_ast::BeginQuery) -> Result<QueryResult, String> {
+        // Check if already in transaction
+        if self.current_transaction.lock().unwrap().is_some() {
+            return Err("Already in a transaction".to_string());
+        }
+
+        // Start new transaction
+        let isolation_level = begin_query.isolation_level.unwrap_or(IsolationLevel::RepeatableRead);
+        let txn_id = self.transaction_manager.begin(isolation_level)?;
+
+        // Log to WAL
+        if let Some(wal) = &self.wal_manager {
+            wal.log_begin(txn_id, isolation_level)
+                .map_err(|e| format!("WAL error: {}", e))?;
+        }
+
+        // Store current transaction
+        *self.current_transaction.lock().unwrap() = Some(txn_id);
+
+        Ok(QueryResult {
+            rows: vec![],
+            rows_affected: 0,
+        })
+    }
+
+    /// Handle COMMIT
+    fn handle_commit(&self) -> Result<QueryResult, String> {
+        // Get current transaction
+        let txn_id = self.current_transaction.lock().unwrap().take()
+            .ok_or("No active transaction to commit".to_string())?;
+
+        // Commit transaction
+        self.transaction_manager.commit(txn_id)?;
+
+        // Log to WAL
+        if let Some(wal) = &self.wal_manager {
+            wal.log_commit(txn_id)
+                .map_err(|e| format!("WAL error: {}", e))?;
+            wal.flush()
+                .map_err(|e| format!("WAL flush error: {}", e))?;
+        }
+
+        Ok(QueryResult {
+            rows: vec![],
+            rows_affected: 0,
+        })
+    }
+
+    /// Handle ROLLBACK
+    fn handle_rollback(&self) -> Result<QueryResult, String> {
+        // Get current transaction
+        let txn_id = self.current_transaction.lock().unwrap().take()
+            .ok_or("No active transaction to rollback".to_string())?;
+
+        // Rollback transaction
+        self.transaction_manager.rollback(txn_id)?;
+
+        // Log to WAL
+        if let Some(wal) = &self.wal_manager {
+            wal.log_rollback(txn_id)
+                .map_err(|e| format!("WAL error: {}", e))?;
+        }
+
+        Ok(QueryResult {
+            rows: vec![],
+            rows_affected: 0,
+        })
     }
 
     fn query_signature(&self, query: &str) -> String {
