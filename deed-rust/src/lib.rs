@@ -34,6 +34,15 @@ pub mod auth;
 // Connection pool module
 pub mod connection_pool;
 
+// Replication module
+pub mod replication;
+
+// Backup/restore module
+pub mod backup;
+
+// Admin dashboard module
+pub mod admin_dashboard;
+
 // DQL (Deed Query Language) modules
 pub mod dql_lexer;
 pub mod dql_ast;
@@ -48,7 +57,7 @@ pub use types::{EntityId, EdgeId, PropertyValue};
 pub use schema::{Schema, Field, FieldType, Constraint, SchemaValidator, ValidationError};
 
 // Transaction exports
-pub use transaction::{Transaction, TransactionId, TransactionState, IsolationLevel, TransactionManager};
+pub use transaction::{Transaction, TransactionId, TransactionState, IsolationLevel, TransactionManager, TransactionStats as TxnStats};
 pub use mvcc::{EntityVersion, VersionedEntity, MVCCManager};
 pub use wal::{WALEntry, WALManager, WALReader, WALWriter};
 
@@ -60,6 +69,15 @@ pub use auth::{AuthManager, User, Session, Role};
 
 // Connection pool exports
 pub use connection_pool::{ConnectionPool, PoolConfig, PoolStats, PooledConnectionHandle};
+
+// Replication exports
+pub use replication::{ReplicationManager, ReplicationEntry, ReplicationConfig, NodeRole, ReplicationSeq, SlaveState, ReplicationStats};
+
+// Backup/restore exports
+pub use backup::{BackupManager, BackupConfig, BackupMetadata, BackupType};
+
+// Admin dashboard exports
+pub use admin_dashboard::{AdminDashboard, DashboardStats, DatabaseStats, AuthStats, TransactionStats};
 
 // DQL exports
 pub use dql_parser::Parser as DQLParser;
