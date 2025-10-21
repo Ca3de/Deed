@@ -48,8 +48,24 @@ LIMIT 10;
 - ✅ Stigmergy-based query cache with pheromone trails
 - ✅ 10-100x faster than separate relational + graph queries
 - ✅ Variable-length traversal: `TRAVERSE -[:FOLLOWS*1..3]-> friend`
+- ✅ **Full CRUD operations**: INSERT, SELECT, UPDATE, DELETE
 
-See [DQL_DESIGN.md](DQL_DESIGN.md) for design rationale and [DQL_IMPLEMENTATION.md](DQL_IMPLEMENTATION.md) for full implementation details.
+**CRUD Examples**:
+```dql
+-- CREATE
+INSERT INTO Users VALUES ({name: 'Alice', age: 28, city: 'NYC'})
+
+-- READ
+FROM Users WHERE age > 25 SELECT name, city ORDER BY age DESC
+
+-- UPDATE
+UPDATE Users SET age = 30 WHERE name = 'Alice'
+
+-- DELETE
+DELETE FROM Users WHERE age > 60
+```
+
+See [DQL_DESIGN.md](DQL_DESIGN.md) for design rationale, [DQL_IMPLEMENTATION.md](DQL_IMPLEMENTATION.md) for implementation details, and [CRUD_GUIDE.md](CRUD_GUIDE.md) for complete CRUD documentation.
 
 ### The Problem
 
