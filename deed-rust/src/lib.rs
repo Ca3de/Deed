@@ -43,6 +43,12 @@ pub mod backup;
 // Admin dashboard module
 pub mod admin_dashboard;
 
+// Distributed database modules
+pub mod distributed_topology;
+pub mod distributed_p2p;
+pub mod distributed_shard;
+pub mod distributed_query;
+
 // DQL (Deed Query Language) modules
 pub mod dql_lexer;
 pub mod dql_ast;
@@ -78,6 +84,12 @@ pub use backup::{BackupManager, BackupConfig, BackupMetadata, BackupType};
 
 // Admin dashboard exports
 pub use admin_dashboard::{AdminDashboard, DashboardStats, DatabaseStats, AuthStats, TransactionStats};
+
+// Distributed database exports
+pub use distributed_topology::{SmallWorldTopology, TopologyConfig, NodeInfo, NodeAddress, NodeId, Connection, ConnectionType, TopologyStatistics};
+pub use distributed_p2p::{P2PNetwork, P2PMessage, P2PConfig, MessageType};
+pub use distributed_shard::{ShardManager, ShardAssignment, ConsistentHash, ShardId};
+pub use distributed_query::{DistributedQueryExecutor, DistributedQueryPlan};
 
 // DQL exports
 pub use dql_parser::Parser as DQLParser;
