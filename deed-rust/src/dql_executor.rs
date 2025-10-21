@@ -51,6 +51,24 @@ impl DQLExecutor {
         })
     }
 
+    /// Create a new executor with shared components (for connection pooling)
+    pub fn with_shared_components(
+        graph: Arc<RwLock<Graph>>,
+        optimizer: Arc<RwLock<AntColonyOptimizer>>,
+        cache: Arc<RwLock<StigmergyCache>>,
+        transaction_manager: Arc<TransactionManager>,
+        wal_manager: Option<Arc<WALManager>>,
+    ) -> Self {
+        DQLExecutor {
+            graph,
+            optimizer,
+            cache,
+            transaction_manager,
+            wal_manager,
+            current_transaction: Arc::new(Mutex::new(None)),
+        }
+    }
+
     /// Execute a DQL query string
     pub fn execute(&self, query_str: &str) -> Result<QueryResult, String> {
         // Parse query

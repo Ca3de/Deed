@@ -31,6 +31,9 @@ pub mod btree;
 // Authentication module
 pub mod auth;
 
+// Connection pool module
+pub mod connection_pool;
+
 // DQL (Deed Query Language) modules
 pub mod dql_lexer;
 pub mod dql_ast;
@@ -54,6 +57,9 @@ pub use btree::{BTreeIndex, IndexManager, IndexKey};
 
 // Authentication exports
 pub use auth::{AuthManager, User, Session, Role};
+
+// Connection pool exports
+pub use connection_pool::{ConnectionPool, PoolConfig, PoolStats, PooledConnectionHandle};
 
 // DQL exports
 pub use dql_parser::Parser as DQLParser;
