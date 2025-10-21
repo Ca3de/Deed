@@ -292,12 +292,15 @@ pub struct PooledConnectionHandle {
 }
 
 impl PooledConnectionHandle {
-    /// Get a reference to the executor
-    pub fn executor(&mut self) -> Result<&mut DQLExecutor, String> {
+    /// Execute a query using this connection
+    ///
+    /// Note: Direct executor access is not provided due to lifetime constraints.
+    /// Use this method to execute queries instead.
+    pub fn execute(&mut self, query: &str) -> Result<crate::dql_executor::QueryResult, String> {
         let mut connections = self.pool.lock().unwrap();
 
         if let Some(conn) = connections.get_mut(self.index) {
-            Ok(&mut conn.executor)
+            conn.executor.execute(query)
         } else {
             Err("Invalid connection handle".to_string())
         }

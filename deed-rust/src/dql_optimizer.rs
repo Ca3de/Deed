@@ -124,7 +124,14 @@ impl AntColonyOptimizer {
         // Find standalone Filter operations and try to merge them into Scan
         let mut i = 0;
         while i < plan.operations.len() {
-            if let Operation::Filter { binding, condition } = &plan.operations[i] {
+            // Clone the filter info first to avoid borrowing issues
+            let filter_info = if let Operation::Filter { binding, condition } = &plan.operations[i] {
+                Some((binding.clone(), condition.clone()))
+            } else {
+                None
+            };
+
+            if let Some((binding, condition)) = filter_info {
                 // Look backwards for Scan with same binding
                 for j in (0..i).rev() {
                     if let Operation::Scan {
@@ -133,7 +140,7 @@ impl AntColonyOptimizer {
                         ..
                     } = &mut plan.operations[j]
                     {
-                        if alias == binding {
+                        if alias == &binding {
                             // Merge filter into scan
                             if let Some(existing_filter) = scan_filter {
                                 *scan_filter = Some(FilterExpr::And(
@@ -203,6 +210,8 @@ impl AntColonyOptimizer {
                 Operation::UpdateEntities { .. } => "UPD",
                 Operation::DeleteEntities { .. } => "DEL",
                 Operation::CreateEdge { .. } => "CRE",
+                Operation::GroupBy { .. } => "G",
+                Operation::Having { .. } => "H",
             })
             .collect::<Vec<_>>()
             .join("_")

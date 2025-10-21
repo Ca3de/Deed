@@ -490,7 +490,8 @@ impl DQLExecutor {
                     let mut row = HashMap::new();
 
                     for field in fields {
-                        let value = self.evaluate_expression(&field.expression, entity, ctx);
+                        let prop_value = self.evaluate_expression(&field.expression, entity, ctx);
+                        let value = self.property_value_to_value(&prop_value);
                         row.insert(field.alias.clone(), value);
                     }
 
@@ -552,7 +553,8 @@ impl DQLExecutor {
                 for entity in all_entities {
                     let mut group_key = Vec::new();
                     for field_expr in group_fields {
-                        let value = self.evaluate_expression(field_expr, &entity, ctx);
+                        let prop_value = self.evaluate_expression(field_expr, &entity, ctx);
+                        let value = self.property_value_to_value(&prop_value);
                         group_key.push(self.value_to_string(&value));
                     }
                     groups.entry(group_key).or_insert_with(Vec::new).push(entity);
@@ -569,10 +571,9 @@ impl DQLExecutor {
                             // Use first entity in group to get field name
                             if let Some(first_entity) = group_entities.first() {
                                 let field_name = self.extract_field_name(field_expr);
-                                row.insert(
-                                    field_name,
-                                    self.evaluate_expression(field_expr, first_entity, ctx),
-                                );
+                                let prop_value = self.evaluate_expression(field_expr, first_entity, ctx);
+                                let value = self.property_value_to_value(&prop_value);
+                                row.insert(field_name, value);
                             }
                         }
                     }
@@ -753,6 +754,18 @@ impl DQLExecutor {
             (Value::Float(a), Value::Float(b)) => a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal),
             (Value::String(a), Value::String(b)) => a.cmp(b),
             _ => std::cmp::Ordering::Equal,
+        }
+    }
+
+    /// Convert PropertyValue to Value
+    fn property_value_to_value(&self, prop_value: &PropertyValue) -> Value {
+        match prop_value {
+            PropertyValue::Null => Value::Null,
+            PropertyValue::Bool(b) => Value::Bool(*b),
+            PropertyValue::Int(i) => Value::Integer(*i),
+            PropertyValue::Float(f) => Value::Float(*f),
+            PropertyValue::String(s) => Value::String(s.clone()),
+            PropertyValue::Bytes(b) => Value::String(format!("{:?}", b)), // Convert bytes to debug string
         }
     }
 

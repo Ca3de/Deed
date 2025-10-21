@@ -8,6 +8,9 @@ use crate::types::{EntityId, EdgeId};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+// Re-export GraphStats from graph module to avoid duplication
+pub use crate::graph::GraphStats;
+
 /// Aggregate operation (for GROUP BY)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AggregateOp {
@@ -388,15 +391,6 @@ impl Value {
             Literal::String(s) => Value::String(s.clone()),
         }
     }
-}
-
-/// Graph statistics for query optimization
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GraphStats {
-    pub entity_count: usize,
-    pub edge_count: usize,
-    pub collection_count: usize,
-    pub avg_pheromone: f32,
 }
 
 /// Query plan builder - converts AST to IR

@@ -64,6 +64,7 @@ impl From<&PropertyValue> for IndexKey {
             PropertyValue::Int(i) => IndexKey::Int(*i),
             PropertyValue::Float(f) => IndexKey::Float(OrderedFloat(*f)),
             PropertyValue::String(s) => IndexKey::String(s.clone()),
+            PropertyValue::Bytes(b) => IndexKey::String(format!("{:?}", b)), // Convert bytes to string representation for indexing
         }
     }
 }
