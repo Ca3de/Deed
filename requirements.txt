@@ -1,0 +1,8 @@
+# Deed Database Requirements
+# Core prototype has zero external dependencies!
+
+# Optional for future development:
+# numpy>=1.20.0  # For advanced numerical operations
+# networkx>=2.6  # For graph algorithm benchmarking
+# matplotlib>=3.4  # For visualization
+# pytest>=6.0    # For testing
