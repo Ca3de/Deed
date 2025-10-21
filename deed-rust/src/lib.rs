@@ -28,6 +28,9 @@ pub mod wal;
 // Index module
 pub mod btree;
 
+// Authentication module
+pub mod auth;
+
 // DQL (Deed Query Language) modules
 pub mod dql_lexer;
 pub mod dql_ast;
@@ -45,6 +48,12 @@ pub use schema::{Schema, Field, FieldType, Constraint, SchemaValidator, Validati
 pub use transaction::{Transaction, TransactionId, TransactionState, IsolationLevel, TransactionManager};
 pub use mvcc::{EntityVersion, VersionedEntity, MVCCManager};
 pub use wal::{WALEntry, WALManager, WALReader, WALWriter};
+
+// Index exports
+pub use btree::{BTreeIndex, IndexManager, IndexKey};
+
+// Authentication exports
+pub use auth::{AuthManager, User, Session, Role};
 
 // DQL exports
 pub use dql_parser::Parser as DQLParser;
