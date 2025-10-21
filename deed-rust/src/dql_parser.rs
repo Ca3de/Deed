@@ -34,6 +34,15 @@ impl Parser {
             Token::Update => Ok(Query::Update(self.parse_update()?)),
             Token::Delete => Ok(Query::Delete(self.parse_delete()?)),
             Token::Create => Ok(Query::Create(self.parse_create()?)),
+            Token::Begin => Ok(Query::Begin(self.parse_begin()?)),
+            Token::Commit => {
+                self.advance();
+                Ok(Query::Commit)
+            }
+            Token::Rollback => {
+                self.advance();
+                Ok(Query::Rollback)
+            }
             _ => Err(format!("Expected query keyword, got {:?}", self.current())),
         }
     }
@@ -686,6 +695,49 @@ impl Parser {
             target,
             properties,
         })
+    }
+
+    /// Parse BEGIN TRANSACTION query
+    fn parse_begin(&mut self) -> Result<BeginQuery, String> {
+        self.expect(&Token::Begin)?;
+
+        // Optional TRANSACTION keyword
+        if self.current() == &Token::Transaction {
+            self.advance();
+        }
+
+        // Optional ISOLATION LEVEL clause
+        let isolation_level = if self.current() == &Token::Isolation {
+            self.advance();
+            self.expect(&Token::Level)?;
+
+            let level_name = self.parse_identifier()?;
+            Some(match level_name.to_uppercase().as_str() {
+                "READ" => {
+                    // READ UNCOMMITTED or READ COMMITTED
+                    let uncommitted_or_committed = self.parse_identifier()?;
+                    match uncommitted_or_committed.to_uppercase().as_str() {
+                        "UNCOMMITTED" => IsolationLevel::ReadUncommitted,
+                        "COMMITTED" => IsolationLevel::ReadCommitted,
+                        _ => return Err(format!("Invalid isolation level: READ {}", uncommitted_or_committed)),
+                    }
+                }
+                "REPEATABLE" => {
+                    // REPEATABLE READ
+                    let read = self.parse_identifier()?;
+                    if read.to_uppercase() != "READ" {
+                        return Err(format!("Expected READ after REPEATABLE, got {}", read));
+                    }
+                    IsolationLevel::RepeatableRead
+                }
+                "SERIALIZABLE" => IsolationLevel::Serializable,
+                _ => return Err(format!("Invalid isolation level: {}", level_name)),
+            })
+        } else {
+            None
+        };
+
+        Ok(BeginQuery { isolation_level })
     }
 
     // Helper methods

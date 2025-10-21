@@ -3,6 +3,7 @@
 //! Represents the parsed structure of a DQL query before optimization.
 
 use serde::{Deserialize, Serialize};
+use crate::transaction::IsolationLevel;
 
 /// Top-level query node
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -12,6 +13,16 @@ pub enum Query {
     Update(UpdateQuery),
     Delete(DeleteQuery),
     Create(CreateQuery),
+    // Transaction commands
+    Begin(BeginQuery),
+    Commit,
+    Rollback,
+}
+
+/// BEGIN TRANSACTION query
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BeginQuery {
+    pub isolation_level: Option<IsolationLevel>,
 }
 
 /// SELECT query with optional TRAVERSE

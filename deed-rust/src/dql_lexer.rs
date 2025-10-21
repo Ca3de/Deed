@@ -46,6 +46,14 @@ pub enum Token {
     Min,
     Max,
 
+    // Transaction commands
+    Begin,
+    Commit,
+    Rollback,
+    Transaction,
+    Isolation,
+    Level,
+
     // Literals
     Identifier(String),
     String(String),
@@ -233,6 +241,14 @@ impl Lexer {
             "AVG" => Token::Avg,
             "MIN" => Token::Min,
             "MAX" => Token::Max,
+
+            // Transaction commands
+            "BEGIN" => Token::Begin,
+            "COMMIT" => Token::Commit,
+            "ROLLBACK" => Token::Rollback,
+            "TRANSACTION" => Token::Transaction,
+            "ISOLATION" => Token::Isolation,
+            "LEVEL" => Token::Level,
 
             "TRUE" => Token::True,
             "FALSE" => Token::False,
