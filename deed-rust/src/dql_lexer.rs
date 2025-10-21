@@ -36,6 +36,23 @@ pub enum Token {
     OrderBy,
     Asc,
     Desc,
+    GroupBy,
+    Having,
+
+    // Aggregate functions
+    Count,
+    Sum,
+    Avg,
+    Min,
+    Max,
+
+    // Transaction commands
+    Begin,
+    Commit,
+    Rollback,
+    Transaction,
+    Isolation,
+    Level,
 
     // Literals
     Identifier(String),
@@ -203,8 +220,36 @@ impl Lexer {
                 }
                 Token::Identifier(result)
             }
+            "GROUP" => {
+                // Check for "GROUP BY"
+                self.skip_whitespace();
+                if let Some(next_token) = self.peek_identifier() {
+                    if next_token.to_uppercase() == "BY" {
+                        self.read_identifier()?; // consume BY
+                        return Ok(Token::GroupBy);
+                    }
+                }
+                Token::Identifier(result)
+            }
             "ASC" => Token::Asc,
             "DESC" => Token::Desc,
+            "HAVING" => Token::Having,
+
+            // Aggregate functions
+            "COUNT" => Token::Count,
+            "SUM" => Token::Sum,
+            "AVG" => Token::Avg,
+            "MIN" => Token::Min,
+            "MAX" => Token::Max,
+
+            // Transaction commands
+            "BEGIN" => Token::Begin,
+            "COMMIT" => Token::Commit,
+            "ROLLBACK" => Token::Rollback,
+            "TRANSACTION" => Token::Transaction,
+            "ISOLATION" => Token::Isolation,
+            "LEVEL" => Token::Level,
+
             "TRUE" => Token::True,
             "FALSE" => Token::False,
             "NULL" => Token::Null,

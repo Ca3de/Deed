@@ -20,6 +20,11 @@ pub mod types;
 pub mod ffi;
 pub mod schema;
 
+// Transaction modules
+pub mod transaction;
+pub mod mvcc;
+pub mod wal;
+
 // DQL (Deed Query Language) modules
 pub mod dql_lexer;
 pub mod dql_ast;
@@ -32,6 +37,11 @@ pub use storage::StorageEngine;
 pub use graph::{Graph, Entity, Edge};
 pub use types::{EntityId, EdgeId, PropertyValue};
 pub use schema::{Schema, Field, FieldType, Constraint, SchemaValidator, ValidationError};
+
+// Transaction exports
+pub use transaction::{Transaction, TransactionId, TransactionState, IsolationLevel, TransactionManager};
+pub use mvcc::{EntityVersion, VersionedEntity, MVCCManager};
+pub use wal::{WALEntry, WALManager, WALReader, WALWriter};
 
 // DQL exports
 pub use dql_parser::Parser as DQLParser;

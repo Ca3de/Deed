@@ -3,6 +3,7 @@
 //! Represents the parsed structure of a DQL query before optimization.
 
 use serde::{Deserialize, Serialize};
+use crate::transaction::IsolationLevel;
 
 /// Top-level query node
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -12,6 +13,16 @@ pub enum Query {
     Update(UpdateQuery),
     Delete(DeleteQuery),
     Create(CreateQuery),
+    // Transaction commands
+    Begin(BeginQuery),
+    Commit,
+    Rollback,
+}
+
+/// BEGIN TRANSACTION query
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BeginQuery {
+    pub isolation_level: Option<IsolationLevel>,
 }
 
 /// SELECT query with optional TRAVERSE
@@ -21,6 +32,8 @@ pub struct SelectQuery {
     pub traverse: Option<TraverseClause>,
     pub where_clause: Option<WhereClause>,
     pub select: SelectClause,
+    pub group_by: Option<GroupByClause>,
+    pub having: Option<HavingClause>,
     pub order_by: Option<OrderByClause>,
     pub limit: Option<usize>,
     pub offset: Option<usize>,
@@ -84,9 +97,22 @@ pub enum Expression {
     Multiply(Box<Expression>, Box<Expression>),
     Divide(Box<Expression>, Box<Expression>),
 
+    // Aggregations
+    Aggregate(AggregateFunction, Box<Expression>),
+
     // Values
     Property(PropertyRef),
     Literal(Literal),
+}
+
+/// Aggregate functions
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum AggregateFunction {
+    Count,      // COUNT(*) or COUNT(field)
+    Sum,        // SUM(field)
+    Avg,        // AVG(field)
+    Min,        // MIN(field)
+    Max,        // MAX(field)
 }
 
 /// Property reference: Table.column or alias.property
@@ -116,6 +142,18 @@ pub struct SelectClause {
 pub struct SelectField {
     pub expression: Expression,
     pub alias: Option<String>,
+}
+
+/// GROUP BY clause
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct GroupByClause {
+    pub fields: Vec<Expression>,
+}
+
+/// HAVING clause (filter after GROUP BY)
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct HavingClause {
+    pub condition: Expression,
 }
 
 /// ORDER BY clause

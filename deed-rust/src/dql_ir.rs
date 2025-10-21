@@ -8,6 +8,36 @@ use crate::types::{EntityId, EdgeId};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// Aggregate operation (for GROUP BY)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AggregateOp {
+    pub function: AggregateFunc,
+    pub argument: FilterExpr,
+    pub alias: String,
+}
+
+/// Aggregate function type
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum AggregateFunc {
+    Count,
+    Sum,
+    Avg,
+    Min,
+    Max,
+}
+
+impl From<&AggregateFunction> for AggregateFunc {
+    fn from(func: &AggregateFunction) -> Self {
+        match func {
+            AggregateFunction::Count => AggregateFunc::Count,
+            AggregateFunction::Sum => AggregateFunc::Sum,
+            AggregateFunction::Avg => AggregateFunc::Avg,
+            AggregateFunction::Min => AggregateFunc::Min,
+            AggregateFunction::Max => AggregateFunc::Max,
+        }
+    }
+}
+
 /// Query execution plan
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QueryPlan {
@@ -123,6 +153,17 @@ pub enum Operation {
         edge_type: String,
         properties: HashMap<String, Value>,
     },
+
+    /// Group by aggregation
+    GroupBy {
+        group_fields: Vec<FilterExpr>,
+        aggregates: Vec<AggregateOp>,
+    },
+
+    /// Filter aggregated results (HAVING)
+    Having {
+        condition: FilterExpr,
+    },
 }
 
 impl Operation {
@@ -174,6 +215,15 @@ impl Operation {
             Operation::UpdateEntities { .. } => 20.0,
             Operation::DeleteEntities { .. } => 15.0,
             Operation::CreateEdge { .. } => 12.0,
+            Operation::GroupBy { .. } => {
+                // Group by requires sorting/hashing - N log N
+                let n = stats.entity_count as f32;
+                n * n.log2()
+            }
+            Operation::Having { .. } => {
+                // Having is a simple filter on aggregated results
+                stats.entity_count as f32 * 0.1
+            }
         }
     }
 }
@@ -216,6 +266,12 @@ pub enum FilterExpr {
     Subtract(Box<FilterExpr>, Box<FilterExpr>),
     Multiply(Box<FilterExpr>, Box<FilterExpr>),
     Divide(Box<FilterExpr>, Box<FilterExpr>),
+
+    // Aggregates
+    Aggregate {
+        function: AggregateFunc,
+        argument: Box<FilterExpr>,
+    },
 
     // Values
     Property {
@@ -288,6 +344,10 @@ impl FilterExpr {
                 property: prop_ref.property.clone(),
             },
             Expression::Literal(lit) => FilterExpr::Constant(Value::from_literal(lit)),
+            Expression::Aggregate(func, arg) => FilterExpr::Aggregate {
+                function: func.into(),
+                argument: Box::new(Self::from_ast(arg, default_binding)),
+            },
         }
     }
 }
@@ -398,7 +458,45 @@ impl QueryPlanBuilder {
             }
         }
 
-        // Step 3: PROJECT (SELECT fields)
+        // Step 3: GROUP BY (if present)
+        if let Some(group_by) = &query.group_by {
+            // Extract aggregate functions from SELECT fields
+            let mut aggregates = Vec::new();
+            for (idx, field) in query.select.fields.iter().enumerate() {
+                if let Expression::Aggregate(func, arg) = &field.expression {
+                    let alias = field
+                        .alias
+                        .clone()
+                        .unwrap_or_else(|| format!("agg_{}", idx));
+
+                    aggregates.push(AggregateOp {
+                        function: func.into(),
+                        argument: FilterExpr::from_ast(arg, &from_binding),
+                        alias,
+                    });
+                }
+            }
+
+            let group_fields: Vec<FilterExpr> = group_by
+                .fields
+                .iter()
+                .map(|f| FilterExpr::from_ast(f, &from_binding))
+                .collect();
+
+            operations.push(Operation::GroupBy {
+                group_fields,
+                aggregates,
+            });
+        }
+
+        // Step 4: HAVING (if present, must come after GROUP BY)
+        if let Some(having) = &query.having {
+            operations.push(Operation::Having {
+                condition: FilterExpr::from_ast(&having.condition, &from_binding),
+            });
+        }
+
+        // Step 5: PROJECT (SELECT fields)
         let mut project_fields = Vec::new();
         for (idx, field) in query.select.fields.iter().enumerate() {
             let alias = field
@@ -416,7 +514,7 @@ impl QueryPlanBuilder {
             fields: project_fields,
         });
 
-        // Step 4: ORDER BY
+        // Step 6: ORDER BY
         if let Some(order_by) = &query.order_by {
             let sort_fields: Vec<SortField> = order_by
                 .fields
@@ -432,7 +530,7 @@ impl QueryPlanBuilder {
             });
         }
 
-        // Step 5: LIMIT/OFFSET
+        // Step 7: LIMIT/OFFSET
         if let Some(offset) = query.offset {
             operations.push(Operation::Skip { count: offset });
         }
@@ -564,6 +662,8 @@ mod tests {
                     alias: None,
                 }],
             },
+            group_by: None,
+            having: None,
             order_by: None,
             limit: None,
             offset: None,
@@ -604,6 +704,8 @@ mod tests {
                     },
                 ],
             },
+            group_by: None,
+            having: None,
             order_by: None,
             limit: Some(10),
             offset: None,
