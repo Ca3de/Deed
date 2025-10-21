@@ -49,7 +49,7 @@ pub struct SubQuery {
 }
 
 /// Type of query
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum QueryType {
     Select,
     Insert,
@@ -334,6 +334,23 @@ impl DistributedQueryExecutor {
                 Ok(QueryResult {
                     rows: Vec::new(),
                     rows_affected: total,
+                })
+            }
+
+            Some(AggregationType::Avg) => {
+                // Average values from all nodes
+                let total: usize = sub_results.iter()
+                    .map(|r| r.rows_affected)
+                    .sum();
+                let avg = if !sub_results.is_empty() {
+                    total / sub_results.len()
+                } else {
+                    0
+                };
+
+                Ok(QueryResult {
+                    rows: Vec::new(),
+                    rows_affected: avg,
                 })
             }
 

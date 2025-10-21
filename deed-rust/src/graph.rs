@@ -367,13 +367,17 @@ impl Graph {
 
         // Add to outgoing neighbors
         self.outgoing.entry(from)
+            .or_insert_with(DashMap::new)
+            .entry(edge_type.clone())
             .or_insert_with(Vec::new)
-            .push((to, id, edge_type.clone()));
+            .push((to, id));
 
         // Add to incoming neighbors
         self.incoming.entry(to)
+            .or_insert_with(DashMap::new)
+            .entry(edge_type)
             .or_insert_with(Vec::new)
-            .push((from, id, edge_type));
+            .push((from, id));
 
         // Update next ID if necessary
         if id.0 >= self.next_edge_id.load(std::sync::atomic::Ordering::SeqCst) {

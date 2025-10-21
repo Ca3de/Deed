@@ -149,7 +149,7 @@ impl DeedMetrics {
             &["state"],
         )?;
 
-        let transaction_duration = Histogram::new(
+        let transaction_duration = Histogram::with_opts(
             HistogramOpts::new("deed_transaction_duration_seconds", "Transaction duration")
                 .buckets(vec![0.01, 0.1, 0.5, 1.0, 5.0, 10.0]),
         )?;
