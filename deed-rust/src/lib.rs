@@ -48,6 +48,11 @@ pub mod distributed_topology;
 pub mod distributed_p2p;
 pub mod distributed_shard;
 pub mod distributed_query;
+pub mod distributed_consensus;
+pub mod distributed_2pc;
+pub mod distributed_partition;
+pub mod distributed_recovery;
+pub mod distributed_metrics;
 
 // DQL (Deed Query Language) modules
 pub mod dql_lexer;
@@ -90,6 +95,11 @@ pub use distributed_topology::{SmallWorldTopology, TopologyConfig, NodeInfo, Nod
 pub use distributed_p2p::{P2PNetwork, P2PMessage, P2PConfig, MessageType};
 pub use distributed_shard::{ShardManager, ShardAssignment, ConsistentHash, ShardId};
 pub use distributed_query::{DistributedQueryExecutor, DistributedQueryPlan};
+pub use distributed_consensus::{RaftNode, RaftState, RaftConfig, RaftMessage, RaftStats, Term, LogIndex};
+pub use distributed_2pc::{TwoPhaseCommitCoordinator, TwoPhaseCommitParticipant, TwoPhaseCommitMessage, TwoPhaseCommitState, Vote, TransactionId, TwoPhaseCommitStats};
+pub use distributed_partition::{PartitionManager, QuorumManager, ConsistencyLevel, PartitionState, PartitionStats, QuorumStats};
+pub use distributed_recovery::{FailureRecoveryManager, RecoveryAction, RecoveryState, RecoveryStats};
+pub use distributed_metrics::{DeedMetrics, MetricsServer, MetricsSnapshot};
 
 // DQL exports
 pub use dql_parser::Parser as DQLParser;
