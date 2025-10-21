@@ -33,7 +33,15 @@ impl Parser {
             Token::Insert => Ok(Query::Insert(self.parse_insert()?)),
             Token::Update => Ok(Query::Update(self.parse_update()?)),
             Token::Delete => Ok(Query::Delete(self.parse_delete()?)),
-            Token::Create => Ok(Query::Create(self.parse_create()?)),
+            Token::Create => {
+                // Check if this is CREATE INDEX or CREATE edge
+                if self.peek() == Some(&Token::Index) || self.peek() == Some(&Token::Unique) {
+                    Ok(Query::CreateIndex(self.parse_create_index()?))
+                } else {
+                    Ok(Query::Create(self.parse_create()?))
+                }
+            }
+            Token::Drop => Ok(Query::DropIndex(self.parse_drop_index()?)),
             Token::Begin => Ok(Query::Begin(self.parse_begin()?)),
             Token::Commit => {
                 self.advance();
@@ -738,6 +746,52 @@ impl Parser {
         };
 
         Ok(BeginQuery { isolation_level })
+    }
+
+    /// Parse CREATE INDEX or CREATE UNIQUE INDEX
+    fn parse_create_index(&mut self) -> Result<CreateIndexQuery, String> {
+        self.expect(&Token::Create)?;
+
+        // Check for UNIQUE keyword
+        let unique = if self.current() == &Token::Unique {
+            self.advance();
+            true
+        } else {
+            false
+        };
+
+        self.expect(&Token::Index)?;
+
+        // Index name
+        let index_name = self.parse_identifier()?;
+
+        // ON keyword
+        self.expect(&Token::On)?;
+
+        // Collection name
+        let collection = self.parse_identifier()?;
+
+        // Field name in parentheses
+        self.expect(&Token::LeftParen)?;
+        let field = self.parse_identifier()?;
+        self.expect(&Token::RightParen)?;
+
+        Ok(CreateIndexQuery {
+            index_name,
+            collection,
+            field,
+            unique,
+        })
+    }
+
+    /// Parse DROP INDEX
+    fn parse_drop_index(&mut self) -> Result<DropIndexQuery, String> {
+        self.expect(&Token::Drop)?;
+        self.expect(&Token::Index)?;
+
+        let index_name = self.parse_identifier()?;
+
+        Ok(DropIndexQuery { index_name })
     }
 
     // Helper methods

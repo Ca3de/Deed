@@ -8,6 +8,7 @@ use crate::dql_parser::Parser;
 use crate::graph::{Graph, Entity, Edge};
 use crate::transaction::{TransactionManager, TransactionId, IsolationLevel};
 use crate::wal::WALManager;
+use crate::btree::IndexManager;
 use crate::types::{EntityId, EdgeId, EdgeType, EntityType, Properties, PropertyValue};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock, Mutex};
@@ -21,6 +22,7 @@ pub struct DQLExecutor {
     transaction_manager: Arc<TransactionManager>,
     wal_manager: Option<Arc<WALManager>>,
     current_transaction: Arc<Mutex<Option<TransactionId>>>,
+    index_manager: Arc<IndexManager>,
 }
 
 impl DQLExecutor {
@@ -33,6 +35,7 @@ impl DQLExecutor {
             transaction_manager: Arc::new(TransactionManager::new()),
             wal_manager: None,
             current_transaction: Arc::new(Mutex::new(None)),
+            index_manager: Arc::new(IndexManager::new()),
         }
     }
 
@@ -48,6 +51,7 @@ impl DQLExecutor {
             transaction_manager: Arc::new(TransactionManager::new()),
             wal_manager: Some(Arc::new(wal_manager)),
             current_transaction: Arc::new(Mutex::new(None)),
+            index_manager: Arc::new(IndexManager::new()),
         })
     }
 
@@ -66,6 +70,7 @@ impl DQLExecutor {
             transaction_manager,
             wal_manager,
             current_transaction: Arc::new(Mutex::new(None)),
+            index_manager: Arc::new(IndexManager::new()),
         }
     }
 
@@ -74,7 +79,7 @@ impl DQLExecutor {
         // Parse query
         let query = Parser::parse(query_str)?;
 
-        // Handle transaction commands separately
+        // Handle transaction and index commands separately
         match &query {
             crate::dql_ast::Query::Begin(begin_query) => {
                 return self.handle_begin(begin_query);
@@ -84,6 +89,12 @@ impl DQLExecutor {
             }
             crate::dql_ast::Query::Rollback => {
                 return self.handle_rollback();
+            }
+            crate::dql_ast::Query::CreateIndex(create_index) => {
+                return self.handle_create_index(create_index);
+            }
+            crate::dql_ast::Query::DropIndex(drop_index) => {
+                return self.handle_drop_index(drop_index);
             }
             _ => {
                 // Regular query - continue below
@@ -981,6 +992,31 @@ impl DQLExecutor {
             wal.log_rollback(txn_id)
                 .map_err(|e| format!("WAL error: {}", e))?;
         }
+
+        Ok(QueryResult {
+            rows: vec![],
+            rows_affected: 0,
+        })
+    }
+
+    /// Handle CREATE INDEX
+    fn handle_create_index(&self, create_index: &crate::dql_ast::CreateIndexQuery) -> Result<QueryResult, String> {
+        self.index_manager.create_index(
+            create_index.index_name.clone(),
+            create_index.collection.clone(),
+            create_index.field.clone(),
+            create_index.unique,
+        )?;
+
+        Ok(QueryResult {
+            rows: vec![],
+            rows_affected: 0,
+        })
+    }
+
+    /// Handle DROP INDEX
+    fn handle_drop_index(&self, drop_index: &crate::dql_ast::DropIndexQuery) -> Result<QueryResult, String> {
+        self.index_manager.drop_index(&drop_index.index_name)?;
 
         Ok(QueryResult {
             rows: vec![],
