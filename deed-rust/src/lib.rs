@@ -8,6 +8,7 @@
 //! - Storage Layer: RocksDB-based LSM tree
 //! - Graph Layer: Optimized adjacency lists with pheromone weights
 //! - DQL Layer: Unified query language combining relational + graph operations
+//! - Schema Layer: Optional schema enforcement with constraints
 //! - Execution Layer: Vectorized query processing with biological optimization
 //! - Network Layer: Async I/O with Tokio
 //! - Python FFI: PyO3 bindings for integration with Python optimizer
@@ -17,6 +18,7 @@ pub mod graph;
 pub mod executor;
 pub mod types;
 pub mod ffi;
+pub mod schema;
 
 // DQL (Deed Query Language) modules
 pub mod dql_lexer;
@@ -29,6 +31,7 @@ pub mod dql_executor;
 pub use storage::StorageEngine;
 pub use graph::{Graph, Entity, Edge};
 pub use types::{EntityId, EdgeId, PropertyValue};
+pub use schema::{Schema, Field, FieldType, Constraint, SchemaValidator, ValidationError};
 
 // DQL exports
 pub use dql_parser::Parser as DQLParser;
