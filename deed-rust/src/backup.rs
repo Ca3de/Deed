@@ -330,8 +330,8 @@ impl SerializedEdge {
     fn from_edge(edge: &Edge) -> Self {
         SerializedEdge {
             id: edge.id.0,
-            from_id: edge.from.0,
-            to_id: edge.to.0,
+            from_id: edge.source.0,
+            to_id: edge.target.0,
             edge_type: edge.edge_type.clone(),
             properties: edge.properties.clone(),
         }

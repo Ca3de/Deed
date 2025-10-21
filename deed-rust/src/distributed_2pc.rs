@@ -132,8 +132,8 @@ impl TwoPhaseCommitCoordinator {
         participants: Vec<NodeId>,
         operations: Vec<u8>,
     ) -> TransactionId {
-        use std::sync::atomic::{AtomicU128, Ordering};
-        static TXN_COUNTER: AtomicU128 = AtomicU128::new(1);
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static TXN_COUNTER: AtomicU64 = AtomicU64::new(1);
 
         let txn_id = TXN_COUNTER.fetch_add(1, Ordering::SeqCst);
 

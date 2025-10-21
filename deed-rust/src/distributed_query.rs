@@ -320,9 +320,8 @@ impl DistributedQueryExecutor {
                     .sum();
 
                 Ok(QueryResult {
-                    success: true,
+                    rows: Vec::new(),
                     rows_affected: total_count,
-                    message: format!("COUNT aggregated from {} nodes", sub_results.len()),
                 })
             }
 
@@ -333,9 +332,8 @@ impl DistributedQueryExecutor {
                     .sum();
 
                 Ok(QueryResult {
-                    success: true,
+                    rows: Vec::new(),
                     rows_affected: total,
-                    message: format!("SUM aggregated from {} nodes", sub_results.len()),
                 })
             }
 
@@ -343,18 +341,16 @@ impl DistributedQueryExecutor {
                 // Would need to deserialize actual values and compare
                 // For now, simplified
                 Ok(QueryResult {
-                    success: true,
+                    rows: Vec::new(),
                     rows_affected: 1,
-                    message: format!("MIN/MAX aggregated from {} nodes", sub_results.len()),
                 })
             }
 
             Some(AggregationType::GroupBy { .. }) => {
                 // Would need to merge group-by results
                 Ok(QueryResult {
-                    success: true,
+                    rows: Vec::new(),
                     rows_affected: sub_results.len(),
-                    message: format!("GROUP BY aggregated from {} nodes", sub_results.len()),
                 })
             }
 
@@ -365,9 +361,8 @@ impl DistributedQueryExecutor {
                     .sum();
 
                 Ok(QueryResult {
-                    success: true,
+                    rows: Vec::new(),
                     rows_affected: total_rows,
-                    message: format!("Query executed on {} nodes, {} total rows affected", sub_results.len(), total_rows),
                 })
             }
         }

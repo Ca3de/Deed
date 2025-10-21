@@ -2,8 +2,9 @@
 //!
 //! Executes optimized query plans with vectorized processing.
 
-use crate::graph::Graph;
+use crate::graph::{Graph, Entity};
 use crate::types::*;
+use crate::transaction::IsolationLevel;
 use std::sync::Arc;
 
 /// Query executor
