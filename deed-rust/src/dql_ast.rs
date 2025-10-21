@@ -17,12 +17,30 @@ pub enum Query {
     Begin(BeginQuery),
     Commit,
     Rollback,
+    // Index commands
+    CreateIndex(CreateIndexQuery),
+    DropIndex(DropIndexQuery),
 }
 
 /// BEGIN TRANSACTION query
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BeginQuery {
     pub isolation_level: Option<IsolationLevel>,
+}
+
+/// CREATE INDEX query
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CreateIndexQuery {
+    pub index_name: String,
+    pub collection: String,
+    pub field: String,
+    pub unique: bool,
+}
+
+/// DROP INDEX query
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct DropIndexQuery {
+    pub index_name: String,
 }
 
 /// SELECT query with optional TRAVERSE

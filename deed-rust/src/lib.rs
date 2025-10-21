@@ -25,6 +25,9 @@ pub mod transaction;
 pub mod mvcc;
 pub mod wal;
 
+// Index module
+pub mod btree;
+
 // DQL (Deed Query Language) modules
 pub mod dql_lexer;
 pub mod dql_ast;
