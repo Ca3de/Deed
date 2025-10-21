@@ -240,9 +240,20 @@ impl AuthManager {
     }
 
     /// List all users (admin only)
-    pub fn list_users(&self) -> Vec<String> {
+    pub fn list_users(&self) -> Vec<User> {
         let users = self.users.read().unwrap();
-        users.keys().cloned().collect()
+        users.values().cloned().collect()
+    }
+
+    /// List active sessions
+    pub fn list_active_sessions(&self) -> Vec<Session> {
+        let sessions = self.sessions.read().unwrap();
+        let now = current_timestamp();
+
+        sessions.values()
+            .filter(|s| s.expires_at > now)
+            .cloned()
+            .collect()
     }
 
     /// Cleanup expired sessions

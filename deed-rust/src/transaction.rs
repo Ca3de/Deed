@@ -297,6 +297,26 @@ impl TransactionManager {
 
         committed.retain(|&id, _| id >= min_txn_to_keep);
     }
+
+    /// Get transaction statistics
+    pub fn stats(&self) -> TransactionStats {
+        let active = self.active_transactions.read().unwrap();
+        let committed = self.committed_transactions.read().unwrap();
+
+        TransactionStats {
+            active_count: active.len(),
+            committed_count: committed.len(),
+            rollbacked_count: 0, // We don't track rollbacks separately
+        }
+    }
+}
+
+/// Transaction statistics
+#[derive(Debug, Clone)]
+pub struct TransactionStats {
+    pub active_count: usize,
+    pub committed_count: usize,
+    pub rollbacked_count: usize,
 }
 
 impl Default for TransactionManager {
