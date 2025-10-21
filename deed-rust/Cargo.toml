@@ -33,6 +33,7 @@ prost = "0.12"
 dashmap = "5.5"  # Concurrent hashmap
 parking_lot = "0.12"  # Better locks
 crossbeam = "0.8"  # Lock-free structures
+rand = "0.8"  # Random number generation
 
 # Metrics
 prometheus = "0.13"
@@ -44,10 +45,6 @@ tracing-subscriber = "0.3"
 [dev-dependencies]
 criterion = "0.5"  # Benchmarking
 proptest = "1.4"   # Property-based testing
-
-[[bench]]
-name = "storage_bench"
-harness = false
 
 [profile.release]
 lto = true           # Link-time optimization
