@@ -324,6 +324,68 @@ impl Graph {
         }
     }
 
+    /// Get all entities (for backup)
+    pub fn get_all_entities(&self) -> Vec<Entity> {
+        self.entities.iter().map(|e| e.value().clone()).collect()
+    }
+
+    /// Get all edges (for backup)
+    pub fn get_all_edges(&self) -> Vec<Edge> {
+        self.edges.iter().map(|e| e.value().clone()).collect()
+    }
+
+    /// Insert entity with specific ID (for restore)
+    pub fn insert_entity_with_id(&self, entity: Entity) {
+        let id = entity.id;
+        let entity_type = entity.entity_type.clone();
+
+        // Insert into entities map
+        self.entities.insert(id, entity);
+
+        // Add to collections
+        let mut collections = self.collections.entry(entity_type.clone())
+            .or_insert_with(Vec::new);
+        if !collections.contains(&id) {
+            collections.push(id);
+        }
+
+        // Update next ID if necessary
+        if id.0 >= self.next_entity_id.load(std::sync::atomic::Ordering::SeqCst) {
+            self.next_entity_id.store(id.0 + 1, std::sync::atomic::Ordering::SeqCst);
+        }
+    }
+
+    /// Insert edge with specific ID (for restore)
+    pub fn insert_edge_with_id(&self, edge: Edge) {
+        let id = edge.id;
+        let from = edge.from;
+        let to = edge.to;
+        let edge_type = edge.edge_type.clone();
+
+        // Insert into edges map
+        self.edges.insert(id, edge);
+
+        // Add to outgoing neighbors
+        self.outgoing.entry(from)
+            .or_insert_with(Vec::new)
+            .push((to, id, edge_type.clone()));
+
+        // Add to incoming neighbors
+        self.incoming.entry(to)
+            .or_insert_with(Vec::new)
+            .push((from, id, edge_type));
+
+        // Update next ID if necessary
+        if id.0 >= self.next_edge_id.load(std::sync::atomic::Ordering::SeqCst) {
+            self.next_edge_id.store(id.0 + 1, std::sync::atomic::Ordering::SeqCst);
+        }
+    }
+
+    /// Create entity with properties (alias for add_entity)
+    pub fn create_entity(&self, entity_type: String, properties: Properties) -> EntityId {
+        self.add_entity(entity_type, properties)
+    }
+
     fn average_pheromone(&self) -> f32 {
         if self.edges.is_empty() {
             return 0.0;

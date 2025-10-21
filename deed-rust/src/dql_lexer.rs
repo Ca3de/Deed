@@ -54,6 +54,12 @@ pub enum Token {
     Isolation,
     Level,
 
+    // Index commands
+    Index,
+    Unique,
+    Drop,
+    On,
+
     // Literals
     Identifier(String),
     String(String),
@@ -249,6 +255,12 @@ impl Lexer {
             "TRANSACTION" => Token::Transaction,
             "ISOLATION" => Token::Isolation,
             "LEVEL" => Token::Level,
+
+            // Index commands
+            "INDEX" => Token::Index,
+            "UNIQUE" => Token::Unique,
+            "DROP" => Token::Drop,
+            "ON" => Token::On,
 
             "TRUE" => Token::True,
             "FALSE" => Token::False,
