@@ -611,6 +611,11 @@ impl DQLExecutor {
             | Operation::CreateEdge { .. } => {
                 Err("Mutation operations should be handled by execute_mutation()".to_string())
             }
+
+            // Join operation - not yet implemented
+            Operation::Join { .. } => {
+                Err("Join operations not yet implemented".to_string())
+            }
         }
     }
 
