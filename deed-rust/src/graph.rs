@@ -218,6 +218,22 @@ impl Graph {
         }
     }
 
+    /// Delete an entity by ID
+    pub fn delete_entity(&self, id: EntityId) -> Result<(), String> {
+        if self.entities.remove(&id).is_some() {
+            // Remove from collections
+            for mut collection in self.collections.iter_mut() {
+                collection.value_mut().retain(|&entity_id| entity_id != id);
+            }
+
+            // Note: We should also clean up edges referencing this entity
+            // For now, just removing the entity
+            Ok(())
+        } else {
+            Err(format!("Entity with ID {:?} not found", id))
+        }
+    }
+
     /// Add a new edge
     pub fn add_edge(
         &self,
