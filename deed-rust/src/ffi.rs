@@ -219,7 +219,7 @@ fn property_value_to_py<'py>(py: Python<'py>, value: &PropertyValue) -> PyResult
         PropertyValue::Int(i) => i.into_py(py),
         PropertyValue::Float(f) => f.into_py(py),
         PropertyValue::String(s) => s.into_py(py),
-        PropertyValue::Bytes(b) => b.into_py(py),
+        PropertyValue::Bytes(b) => b.clone().into_py(py),
     };
 
     Ok(obj)

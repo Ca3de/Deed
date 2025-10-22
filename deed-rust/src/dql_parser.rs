@@ -4,6 +4,7 @@
 
 use crate::dql_ast::*;
 use crate::dql_lexer::{Lexer, Token};
+use crate::transaction::IsolationLevel;
 
 pub struct Parser {
     tokens: Vec<Token>,

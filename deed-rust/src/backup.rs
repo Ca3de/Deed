@@ -309,10 +309,14 @@ impl SerializedEntity {
     }
 
     fn to_entity(&self) -> Entity {
+        let now = SystemTime::now();
         Entity {
             id: EntityId(self.id),
             entity_type: self.entity_type.clone(),
             properties: self.properties.clone(),
+            access_count: 0,
+            last_accessed: now,
+            created_at: now,
         }
     }
 }
@@ -338,12 +342,19 @@ impl SerializedEdge {
     }
 
     fn to_edge(&self) -> Edge {
+        use crate::types::Pheromone;
+        let now = SystemTime::now();
         Edge {
             id: EdgeId(self.id),
-            from: EntityId(self.from_id),
-            to: EntityId(self.to_id),
+            source: EntityId(self.from_id),
+            target: EntityId(self.to_id),
             edge_type: self.edge_type.clone(),
             properties: self.properties.clone(),
+            pheromone: Pheromone::default(),
+            traversal_count: 0,
+            avg_latency_ns: 0,
+            created_at: now,
+            last_traversed: now,
         }
     }
 }

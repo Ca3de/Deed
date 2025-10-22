@@ -72,7 +72,7 @@ impl EntityVersion {
 }
 
 /// Multi-versioned entity storage
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct VersionedEntity {
     /// Entity ID
     pub entity_id: EntityId,
@@ -81,6 +81,16 @@ pub struct VersionedEntity {
     /// Latest version number
     #[serde(skip)]
     pub latest_version: AtomicU64,
+}
+
+impl Clone for VersionedEntity {
+    fn clone(&self) -> Self {
+        VersionedEntity {
+            entity_id: self.entity_id,
+            versions: self.versions.clone(),
+            latest_version: AtomicU64::new(self.latest_version.load(Ordering::SeqCst)),
+        }
+    }
 }
 
 impl VersionedEntity {

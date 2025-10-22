@@ -13,13 +13,11 @@
 
 use crate::distributed_topology::NodeId;
 use crate::distributed_shard::ShardId;
+use crate::transaction::TransactionId;
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
-
-/// Transaction ID (globally unique)
-pub type TransactionId = u128;
 
 /// 2PC transaction state
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
