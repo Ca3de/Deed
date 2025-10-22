@@ -275,9 +275,10 @@ impl DQLExecutor {
                 // Acquire write lock and delete
                 let graph = self.graph.read().unwrap();
 
-                // Note: Graph doesn't have a delete_entity method yet
-                // We'll track the count for now
-                // In production: for id in entity_ids { graph.delete_entity(id); }
+                // Delete each entity from storage
+                for entity_id in &entity_ids {
+                    graph.delete_entity(*entity_id)?;
+                }
 
                 drop(graph);
 
