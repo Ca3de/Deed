@@ -251,9 +251,8 @@ impl DQLExecutor {
                             entity.set_property(key.clone(), value);
                         }
 
-                        // Note: In production, you'd have a method to update entity in storage
-                        // For now, the entity is updated in the DashMap by reference
-                        // graph.update_entity(entity);
+                        // Write the updated entity back to storage
+                        graph.update_entity(entity)?;
                     }
                 }
 

@@ -207,6 +207,17 @@ impl Graph {
         })
     }
 
+    /// Update an existing entity's properties
+    pub fn update_entity(&self, entity: Entity) -> Result<(), String> {
+        let id = entity.id;
+        if self.entities.contains_key(&id) {
+            self.entities.insert(id, entity);
+            Ok(())
+        } else {
+            Err(format!("Entity with ID {:?} not found", id))
+        }
+    }
+
     /// Add a new edge
     pub fn add_edge(
         &self,
