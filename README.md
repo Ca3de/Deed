@@ -443,7 +443,7 @@ No one "designs" an ant trail network, yet it's provably optimal. Deed brings th
 
 - GitHub Issues: Bug reports and feature requests
 - Discussions: Architecture and research topics
-- Email: [your-email]
+- Email: triygoc@icloud.com
 
 ---
 
