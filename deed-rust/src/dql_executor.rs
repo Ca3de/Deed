@@ -240,11 +240,21 @@ impl DQLExecutor {
                     .map(|e| e.id)
                     .collect();
 
+                // Get current transaction ID if in a transaction
+                let txn_id = self.current_transaction.lock().unwrap().clone();
+
                 // Acquire write lock and update each entity
                 let graph = self.graph.read().unwrap();
 
                 for entity_id in &entity_ids {
                     if let Some(mut entity) = graph.get_entity(*entity_id) {
+                        // Save snapshot before modification if in a transaction
+                        if let Some(tid) = txn_id {
+                            let entity_json = serde_json::to_string(&entity)
+                                .map_err(|e| format!("Failed to serialize entity: {}", e))?;
+                            self.transaction_manager.save_entity_snapshot(tid, entity_id.0, entity_json)?;
+                        }
+
                         // Apply updates
                         for (key, expr) in updates {
                             let value = self.evaluate_expression(expr, &entity, ctx);
@@ -272,11 +282,23 @@ impl DQLExecutor {
                     .map(|e| e.id)
                     .collect();
 
+                // Get current transaction ID if in a transaction
+                let txn_id = self.current_transaction.lock().unwrap().clone();
+
                 // Acquire write lock and delete
                 let graph = self.graph.read().unwrap();
 
                 // Delete each entity from storage
                 for entity_id in &entity_ids {
+                    // Save snapshot before deletion if in a transaction
+                    if let Some(tid) = txn_id {
+                        if let Some(entity) = graph.get_entity(*entity_id) {
+                            let entity_json = serde_json::to_string(&entity)
+                                .map_err(|e| format!("Failed to serialize entity: {}", e))?;
+                            self.transaction_manager.save_entity_snapshot(tid, entity_id.0, entity_json)?;
+                        }
+                    }
+
                     graph.delete_entity(*entity_id)?;
                 }
 
@@ -1002,8 +1024,20 @@ impl DQLExecutor {
         let txn_id = self.current_transaction.lock().unwrap().take()
             .ok_or("No active transaction to rollback".to_string())?;
 
-        // Rollback transaction
-        self.transaction_manager.rollback(txn_id)?;
+        // Rollback transaction and get snapshots to restore
+        let snapshots = self.transaction_manager.rollback(txn_id)?;
+
+        // Restore entity snapshots
+        let graph = self.graph.read().unwrap();
+        for (entity_id, entity_json) in snapshots {
+            // Deserialize the entity from JSON
+            let entity: crate::graph::Entity = serde_json::from_str(&entity_json)
+                .map_err(|e| format!("Failed to deserialize entity: {}", e))?;
+
+            // Restore the entity
+            graph.update_entity(entity)?;
+        }
+        drop(graph);
 
         // Log to WAL
         if let Some(wal) = &self.wal_manager {
