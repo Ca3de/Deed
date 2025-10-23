@@ -21,11 +21,9 @@ fn main() {
 
     // Create database with WAL
     let graph = Arc::new(RwLock::new(Graph::new()));
-    let wal_manager = Some(Arc::new(
-        WALManager::new(wal_dir).expect("Failed to create WAL manager")
-    ));
 
-    let executor = DQLExecutor::with_wal(graph.clone(), wal_manager.clone());
+    let executor = DQLExecutor::new_with_wal(graph.clone(), wal_dir)
+        .expect("Failed to create executor with WAL");
 
     println!("   ✓ Database initialized with WAL\n");
 
@@ -88,11 +86,9 @@ fn main() {
 
     // Create new database instance
     let graph2 = Arc::new(RwLock::new(Graph::new()));
-    let wal_manager2 = Some(Arc::new(
-        WALManager::new(wal_dir).expect("Failed to create WAL manager")
-    ));
 
-    let executor2 = DQLExecutor::with_wal(graph2.clone(), wal_manager2.clone());
+    let executor2 = DQLExecutor::new_with_wal(graph2.clone(), wal_dir)
+        .expect("Failed to create executor with WAL");
 
     // Recover from WAL
     println!("   📖 Reading WAL entries...");
