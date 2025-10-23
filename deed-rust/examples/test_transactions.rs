@@ -25,7 +25,7 @@ fn main() {
     }
 
     // Update Alice's balance
-    match executor.execute(r#"FROM Accounts WHERE holder = "Alice" UPDATE SET balance = 1200"#) {
+    match executor.execute(r#"UPDATE Accounts SET balance = 1200 WHERE holder = "Alice""#) {
         Ok(result) => println!("   ✓ Updated {} account (Alice: 1000 → 1200)", result.rows_affected),
         Err(e) => println!("   ✗ Error: {}", e),
     }
@@ -55,7 +55,7 @@ fn main() {
     }
 
     // Update Bob's balance
-    match executor.execute(r#"FROM Accounts WHERE holder = "Bob" UPDATE SET balance = 1000"#) {
+    match executor.execute(r#"UPDATE Accounts SET balance = 1000 WHERE holder = "Bob""#) {
         Ok(result) => println!("   ✓ Updated {} account (Bob: 500 → 1000)", result.rows_affected),
         Err(e) => println!("   ✗ Error: {}", e),
     }
@@ -186,13 +186,13 @@ fn main() {
     }
 
     // Deduct from Alice (1200 - 200 = 1000)
-    match executor.execute(r#"FROM Accounts WHERE holder = "Alice" UPDATE SET balance = 1000"#) {
+    match executor.execute(r#"UPDATE Accounts SET balance = 1000 WHERE holder = "Alice""#) {
         Ok(result) => println!("   ✓ Deducted $200 from Alice ({} updated)", result.rows_affected),
         Err(e) => println!("   ✗ Error: {}", e),
     }
 
     // Add to Carol (750 + 200 = 950)
-    match executor.execute(r#"FROM Accounts WHERE holder = "Carol" UPDATE SET balance = 950"#) {
+    match executor.execute(r#"UPDATE Accounts SET balance = 950 WHERE holder = "Carol""#) {
         Ok(result) => println!("   ✓ Added $200 to Carol ({} updated)", result.rows_affected),
         Err(e) => println!("   ✗ Error: {}", e),
     }
