@@ -114,6 +114,8 @@ pub struct TransactionManager {
     active_transactions: Arc<RwLock<HashMap<TransactionId, Transaction>>>,
     /// Committed transactions (keep recent history for MVCC)
     committed_transactions: Arc<RwLock<HashMap<TransactionId, Transaction>>>,
+    /// Entity snapshots for rollback (txn_id -> entity_id -> entity_json)
+    entity_snapshots: Arc<RwLock<HashMap<TransactionId, HashMap<u64, String>>>>,
 }
 
 impl TransactionManager {
@@ -123,6 +125,7 @@ impl TransactionManager {
             next_txn_id: AtomicU64::new(1),
             active_transactions: Arc::new(RwLock::new(HashMap::new())),
             committed_transactions: Arc::new(RwLock::new(HashMap::new())),
+            entity_snapshots: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -135,6 +138,11 @@ impl TransactionManager {
             .map_err(|e| format!("Failed to acquire lock: {}", e))?;
 
         active.insert(txn_id, transaction);
+
+        // Initialize empty snapshot map for this transaction
+        let mut snapshots = self.entity_snapshots.write()
+            .map_err(|e| format!("Failed to acquire lock: {}", e))?;
+        snapshots.insert(txn_id, HashMap::new());
 
         Ok(txn_id)
     }
@@ -164,11 +172,17 @@ impl TransactionManager {
 
         committed.insert(txn_id, transaction);
 
+        // Clean up snapshots since transaction is committed
+        let mut snapshots = self.entity_snapshots.write()
+            .map_err(|e| format!("Failed to acquire lock: {}", e))?;
+        snapshots.remove(&txn_id);
+
         Ok(())
     }
 
     /// Rollback (abort) a transaction
-    pub fn rollback(&self, txn_id: TransactionId) -> Result<(), String> {
+    /// Returns the entity snapshots that need to be restored
+    pub fn rollback(&self, txn_id: TransactionId) -> Result<HashMap<u64, String>, String> {
         let mut active = self.active_transactions.write()
             .map_err(|e| format!("Failed to acquire lock: {}", e))?;
 
@@ -178,8 +192,14 @@ impl TransactionManager {
         // Mark as aborted
         transaction.state = TransactionState::Aborted;
 
-        // Don't need to track aborted transactions
-        Ok(())
+        // Get and remove snapshots for this transaction
+        let mut snapshots = self.entity_snapshots.write()
+            .map_err(|e| format!("Failed to acquire lock: {}", e))?;
+
+        let entity_snapshots = snapshots.remove(&txn_id)
+            .unwrap_or_default();
+
+        Ok(entity_snapshots)
     }
 
     /// Get a transaction
@@ -228,6 +248,22 @@ impl TransactionManager {
             .ok_or_else(|| format!("Transaction {} not found", txn_id))?;
 
         transaction.track_write(entity_id);
+        Ok(())
+    }
+
+    /// Save entity snapshot before modification (for rollback)
+    pub fn save_entity_snapshot(&self, txn_id: TransactionId, entity_id: u64, entity_json: String) -> Result<(), String> {
+        let mut snapshots = self.entity_snapshots.write()
+            .map_err(|e| format!("Failed to acquire lock: {}", e))?;
+
+        let txn_snapshots = snapshots.get_mut(&txn_id)
+            .ok_or_else(|| format!("Transaction {} not found in snapshots", txn_id))?;
+
+        // Only save if not already saved (first modification wins)
+        if !txn_snapshots.contains_key(&entity_id) {
+            txn_snapshots.insert(entity_id, entity_json);
+        }
+
         Ok(())
     }
 
